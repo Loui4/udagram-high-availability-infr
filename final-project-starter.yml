@@ -12,6 +12,16 @@ Parameters:
     Type: String
     Default: 10.0.0.0/16
 
+  SubnetOneCIDR:
+    Description: CIDR block for subnet 1
+    Type: String
+    Default: 10.0.1.0/24
+
+  SubnetTwoCIDR:
+    Description: CIDR block for subnet 1
+    Type: String
+    Default: 10.0.1.0/24
+
 Resources:
   # instace profile contains the IAM Role name(s) that we want to associate to our auto scaling EC2 Servers
   # never give too much permissions to your EC2 instances! if they get hacked, the permissions get hacked also!
@@ -24,6 +34,27 @@ Resources:
       Tags:
         - Key: Name
           Value: !Ref EnvironmentName
+  SubnetOne:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      CidrBlock: !Ref SubnetOneCIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} subnet one
+
+  SubnetTwo:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      CidrBlock: !Ref SubnetTwoCIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName} subnet two
 
   # ProfileWithRolesForOurApp:
   #   Type: AWS::IAM::InstanceProfile

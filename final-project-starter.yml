@@ -56,11 +56,53 @@ Resources:
         - Key: Name
           Value: !Sub ${EnvironmentName} subnet two
 
+  WebServerSecGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http and ssh access
+      VpcId:
+        Fn::ImportValue: !Sub "${Environment}-VCPID"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 0
+          ToPort: 65535
+
+  WedConfiguration:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: ami-06878d265978313ca
+      InstanceType: t3.small
+      KeyName: vockey
+      SecurityGroups:
+        - WebServerSecGroup
+      BlockDeviceMappings:
+        - DeviceName: "/dev/sdk"
+          Ebs:
+            VolumeSize: 10
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          apt-get update -y
+          apt-get install apache2 -y
+          systemctl start apache2.service
+          cd /var/www/html
+          echo "Udacity Demo Web Server Up and Running!" > index.html
+
   # ProfileWithRolesForOurApp:
   #   Type: AWS::IAM::InstanceProfile
   #   Properties:
   #     Roles:
   #       - UdacityS3ReadOnlyEC2
+
 # Outputs:
 # This is also optional.
 # Bonus points for useful outputs!
@@ -72,10 +114,10 @@ Resources:
 # Install Apache Web Server, Start it, and create an index.html that will be displayed
 # when you visit the IP address of this server with your web browser
 #Here it is:
-#
-#          #!/bin/bash
-#          apt-get update -y
-#          apt-get install apache2 -y
-#          systemctl start apache2.service
-#          cd /var/www/html
-#          echo "Udacity Demo Web Server Up and Running!" > index.html
+
+#  #!/bin/bash
+#  apt-get update -y
+#  apt-get install apache2 -y
+#  systemctl start apache2.service
+#  cd /var/www/html
+#  echo "Udacity Demo Web Server Up and Running!" > index.html

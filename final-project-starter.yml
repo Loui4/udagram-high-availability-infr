@@ -12,6 +12,10 @@ Parameters:
     Type: String
     Default: v1
 
+  SSHKeyName:
+    Description: ssh key name
+    Type: String
+
   VpcCIDR:
     Description: CIDR block for the VPC
     Type: String
@@ -64,26 +68,11 @@ Resources:
       Tags:
         - Key: Name
           Value: !Sub ${EnvironmentName} subnet two
-
-  # WebServerSecGroup:
-  #   Type: AWS::EC2::SecurityGroup
-  #   Properties:
-  #     GroupDescription: Allow http and ssh access
-  #     VpcId:
-  #       Fn::ImportValue: !Sub "${Environment}-VCPID"
-  #     SecurityGroupIngress:
-  #       - IpProtocol: tcp
-  #         FromPort: 80
-  #         ToPort: 80
-  #         CidrIp: 0.0.0.0/0
-  #       - IpProtocol: tcp
-  #         FromPort: 22
-  #         ToPort: 22
-  #         CidrIp: 0.0.0.0/0
-  #     SecurityGroupEgress:
-  #       - IpProtocol: tcp
-  #         FromPort: 0
-  #         ToPort: 65535
+  ProfileWithRolesForOurApp:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - AssignmentOneS3ReadOnlyEC2
 
   WebLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
@@ -91,7 +80,10 @@ Resources:
       LaunchTemplateData:
         ImageId: ami-06878d265978313ca
         InstanceType: t3.small
-        KeyName: vockey
+        KeyName: !Ref SSHKeyName
+        IamInstanceProfile:
+          Arn: !GetAtt
+            - ProfileWithRolesForOurApp
         SecurityGroups:
           - !Ref ServerSG
         BlockDeviceMappings:
@@ -134,6 +126,21 @@ Resources:
       VpcId:
         Fn::ImportValue:
           Fn::Sub: "${EnvironmentName}-VPCID"
+  LBSecGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow public http access
+      VpcId:
+        Fn::ImportValue: !Sub "${Environment}-VCPID"
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
 
   WebAppLB:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
@@ -167,12 +174,6 @@ Resources:
           Values: [/]
       ListenerArn: !Ref "Listener"
       Priority: 1
-
-  # ProfileWithRolesForOurApp:
-  #   Type: AWS::IAM::InstanceProfile
-  #   Properties:
-  #     Roles:
-  #       - UdacityS3ReadOnlyEC2
 # Outputs:
 # This is also optional.
 # Bonus points for useful outputs!

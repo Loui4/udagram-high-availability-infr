@@ -12,7 +12,15 @@
     "ParameterValue": "10.0.1.0/24"
   },
   {
+    "ParameterKey": "ServerSG",
+    "ParameterValue": "sg-020ac9d8f54335c66"
+  },
+  {
     "ParameterKey": "SubnetTwoCIDR",
     "ParameterValue": "10.0.2.0/24"
+  },
+  {
+    "ParameterKey": "myLaunchTemplateVersionNumber",
+    "ParameterValue": "v1"
   }
 ]

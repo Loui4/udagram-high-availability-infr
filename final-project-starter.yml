@@ -7,10 +7,19 @@ Parameters:
     Description: udagram high availability infr
     Type: String
 
+  myLaunchTemplateVersionNumber:
+    Description: launchTemplateVersion
+    Type: String
+    Default: v1
+
   VpcCIDR:
     Description: CIDR block for the VPC
     Type: String
     Default: 10.0.0.0/16
+
+  ServerSG:
+    Description: server security group
+    Type: String
 
   SubnetOneCIDR:
     Description: CIDR block for subnet 1
@@ -56,53 +65,66 @@ Resources:
         - Key: Name
           Value: !Sub ${EnvironmentName} subnet two
 
-  WebServerSecGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Allow http and ssh access
-      VpcId:
-        Fn::ImportValue: !Sub "${Environment}-VCPID"
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: 0.0.0.0/0
-      SecurityGroupEgress:
-        - IpProtocol: tcp
-          FromPort: 0
-          ToPort: 65535
+  # WebServerSecGroup:
+  #   Type: AWS::EC2::SecurityGroup
+  #   Properties:
+  #     GroupDescription: Allow http and ssh access
+  #     VpcId:
+  #       Fn::ImportValue: !Sub "${Environment}-VCPID"
+  #     SecurityGroupIngress:
+  #       - IpProtocol: tcp
+  #         FromPort: 80
+  #         ToPort: 80
+  #         CidrIp: 0.0.0.0/0
+  #       - IpProtocol: tcp
+  #         FromPort: 22
+  #         ToPort: 22
+  #         CidrIp: 0.0.0.0/0
+  #     SecurityGroupEgress:
+  #       - IpProtocol: tcp
+  #         FromPort: 0
+  #         ToPort: 65535
 
-  WedConfiguration:
-    Type: AWS::AutoScaling::LaunchConfiguration
+  WebLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
     Properties:
-      ImageId: ami-06878d265978313ca
-      InstanceType: t3.small
-      KeyName: vockey
-      SecurityGroups:
-        - WebServerSecGroup
-      BlockDeviceMappings:
-        - DeviceName: "/dev/sdk"
-          Ebs:
-            VolumeSize: 10
-      UserData:
-        Fn::Base64: !Sub |
-          #!/bin/bash
-          apt-get update -y
-          apt-get install apache2 -y
-          systemctl start apache2.service
-          cd /var/www/html
-          echo "Udacity Demo Web Server Up and Running!" > index.html
+      LaunchTemplateData:
+        ImageId: ami-06878d265978313ca
+        InstanceType: t3.small
+        KeyName: vockey
+        SecurityGroups:
+          - !Ref ServerSG
+        BlockDeviceMappings:
+          - DeviceName: "/dev/sdk"
+            Ebs:
+              VolumeSize: 10
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+            apt-get update -y
+            apt-get install apache2 -y
+            systemctl start apache2.service
+            cd /var/www/html
+            echo "Udacity Demo Web Server Up and Running!" > index.html
+
+  WebAppGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier:
+        - Fn::ImportValue: !Sub "${EnvironmentName}-PRIV-NETS"
+      LaunchTemplate:
+        LaunchTemplateId: !Ref WebLaunchTemplate
+        Version: !Ref myLaunchTemplateVersionNumber
+      MinSize: "3"
+      MaxSize: "5"
+      TargetGroupARNs:
+        - Ref: WebAppTargetGroup
 
   # ProfileWithRolesForOurApp:
   #   Type: AWS::IAM::InstanceProfile
   #   Properties:
   #     Roles:
   #       - UdacityS3ReadOnlyEC2
-
 # Outputs:
 # This is also optional.
 # Bonus points for useful outputs!

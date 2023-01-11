@@ -22,9 +22,5 @@
   {
     "ParameterKey": "myLaunchTemplateVersionNumber",
     "ParameterValue": "1"
-  },
-  {
-    "ParameterKey": "SSHKeyName",
-    "ParameterValue": "assignmentOne"
   }
 ]

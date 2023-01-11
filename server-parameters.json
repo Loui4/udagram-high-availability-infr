@@ -13,7 +13,7 @@
   },
   {
     "ParameterKey": "ServerSG",
-    "ParameterValue": "sg-020ac9d8f54335c66"
+    "ParameterValue": "sg-027d22a351d1be86f"
   },
   {
     "ParameterKey": "SubnetTwoCIDR",
@@ -21,7 +21,7 @@
   },
   {
     "ParameterKey": "myLaunchTemplateVersionNumber",
-    "ParameterValue": "v1"
+    "ParameterValue": "1"
   },
   {
     "ParameterKey": "SSHKeyName",

@@ -9,8 +9,8 @@ Parameters:
 
   myLaunchTemplateVersionNumber:
     Description: launchTemplateVersion
-    Type: String
-    Default: v1
+    Type: Number
+    Default: 1
 
   SSHKeyName:
     Description: ssh key name
@@ -36,9 +36,25 @@ Parameters:
     Default: 10.0.1.0/24
 
 Resources:
-  # instace profile contains the IAM Role name(s) that we want to associate to our auto scaling EC2 Servers
+  # instance profile contains the IAM Role name(s) that we want to associate to our auto scaling EC2 Servers
   # never give too much permissions to your EC2 instances! if they get hacked, the permissions get hacked also!
   # in this example, I create a Role called UdacityS3ReadOnlyC2 and just give it a policy of S3 Read-Only Access
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Ref EnvironmentName
+
+  InternetGateWayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    DependsOn:
+      - InternetGateway
+      - VPC
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
   VPC:
     Type: AWS::EC2::VPC
     Properties:
@@ -62,17 +78,17 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
-      AvailabilityZone: !Select [1, !GetAZs ""]
+      AvailabilityZone: !Select [0, !GetAZs ""]
       CidrBlock: !Ref SubnetTwoCIDR
       MapPublicIpOnLaunch: false
       Tags:
         - Key: Name
           Value: !Sub ${EnvironmentName} subnet two
-  ProfileWithRolesForOurApp:
-    Type: AWS::IAM::InstanceProfile
-    Properties:
-      Roles:
-        - AssignmentOneS3ReadOnlyEC2
+  # ProfileWithRolesForOurApp:
+  #   Type: AWS::IAM::InstanceProfile
+  #   Properties:
+  #     Roles:
+  #       - AssignmentOneS3ReadOnlyEC2
 
   WebLaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
@@ -81,11 +97,11 @@ Resources:
         ImageId: ami-06878d265978313ca
         InstanceType: t3.small
         KeyName: !Ref SSHKeyName
-        IamInstanceProfile:
-          Arn: !GetAtt
-            - ProfileWithRolesForOurApp
+        # IamInstanceProfile:
+        #   Arn: !GetAtt
+        #     - ProfileWithRolesForOurApp
         SecurityGroups:
-          - !Ref ServerSG
+          - Ref: LBSecGroup
         BlockDeviceMappings:
           - DeviceName: "/dev/sdk"
             Ebs:
@@ -99,11 +115,14 @@ Resources:
             cd /var/www/html
             echo "Udacity Demo Web Server Up and Running!" > index.html
 
-  WebAppGroup:
+  WebAppAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
+    DependsOn:
+      - SubnetOne
+      - SubnetTwo
     Properties:
       VPCZoneIdentifier:
-        - Fn::ImportValue: !Sub "${EnvironmentName}-PRIV-NETS"
+        - !Join [",", [!Ref SubnetOne, !Ref SubnetTwo]]
       LaunchTemplate:
         LaunchTemplateId: !Ref WebLaunchTemplate
         Version: !Ref myLaunchTemplateVersionNumber
@@ -114,6 +133,7 @@ Resources:
 
   WebAppTargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    DependsOn: VPC
     Properties:
       HealthCheckIntervalSeconds: 10
       HealthCheckPath: /
@@ -123,15 +143,13 @@ Resources:
       Port: 80
       Protocol: HTTP
       UnhealthyThresholdCount: 5
-      VpcId:
-        Fn::ImportValue:
-          Fn::Sub: "${EnvironmentName}-VPCID"
+      VpcId: !Ref VPC
   LBSecGroup:
     Type: AWS::EC2::SecurityGroup
+    DependsOn: VPC
     Properties:
       GroupDescription: Allow public http access
-      VpcId:
-        Fn::ImportValue: !Sub "${Environment}-VCPID"
+      VpcId: !Ref VPC
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 80
@@ -139,15 +157,19 @@ Resources:
           CidrIp: 0.0.0.0/0
       SecurityGroupEgress:
         - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
+          FromPort: 0
+          ToPort: 6523
+          CidrIp: 0.0.0.0/0
 
   WebAppLB:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    DependsOn:
+      - SubnetOne
+      - SubnetTwo
     Properties:
       Subnets:
-        - Fn::ImportValue: !Sub "${EnvironmentName}-PUB1-SN"
-        - Fn::ImportValue: !Sub "${EnvironmentName}-PUB2-SN"
+        - !Ref SubnetOne
+        - !Ref SubnetTwo
       SecurityGroups:
         - Ref: LBSecGroup
 
@@ -174,7 +196,27 @@ Resources:
           Values: [/]
       ListenerArn: !Ref "Listener"
       Priority: 1
-# Outputs:
+Outputs:
+  VPC:
+    Description: a reference to vpc id
+    Value: !Ref VPC
+    Export:
+      Name: !Sub ${EnvironmentName}-VPCID
+  SubnetOne:
+    Description: a reference to subnet one
+    Value: !Ref SubnetOne
+    Export:
+      Name: !Sub ${EnvironmentName}-PUB1-SN
+  SubnetTwo:
+    Description: a reference to subnet two
+    Value: !Ref SubnetTwo
+    Export:
+      Name: !Sub ${EnvironmentName}-PUB2-SN
+  PublicSubnets:
+    Description: A list of the public subnets
+    Value: !Join [",", [!Ref SubnetOne, !Ref SubnetTwo]]
+    Export:
+      Name: !Sub ${EnvironmentName}-PUB-NETS
 # This is also optional.
 # Bonus points for useful outputs!
 # for example, if you create a Load Balancer

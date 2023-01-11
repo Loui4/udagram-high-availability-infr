@@ -161,7 +161,7 @@ Resources:
           ToPort: 6523
           CidrIp: 0.0.0.0/0
 
-  WebAppLB:
+  Assignmentlb:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     DependsOn:
       - SubnetOne
@@ -181,7 +181,7 @@ Resources:
           TargetGroupArn:
             Ref: WebAppTargetGroup
       LoadBalancerArn:
-        Ref: WebAppLB
+        Ref: Assignmentlb
       Port: 80
       Protocol: HTTP
 
